@@ -15,6 +15,7 @@ echo "## Create user for vault service ##"
 sudo useradd -m -d /mnt/vault-data vault
 
 echo "## Copy the valut.hcl file ##"
+sudo mkdir /etc/vault.d/
 sudo cp -rv aws-vault-hcl-configuration/vault.hcl /etc/vault.d/
 
 echo "## Copy the vault.service file ##"
