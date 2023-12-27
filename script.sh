@@ -1,4 +1,7 @@
 #!/bin/bash
+echo "Create user for vault service"
+sudo useradd -m -d /mnt/vault-data vault
+
 echo "Copy the valut.hcl file"
 sudo cp -rv vault.hcl /etc/vault.d/
 

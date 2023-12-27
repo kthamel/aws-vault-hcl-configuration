@@ -3,7 +3,8 @@ Description="Vault Server"
 Documentation=https://www.vaultproject.io/docs/
 Requires=network-online.target
 After=network-online.target
-ConditionFileNotEmpty=/etc/vault.d/vault.hcl StartLimitIntervalSec=60
+ConditionFileNotEmpty=/etc/vault.d/vault.hcl 
+StartLimitIntervalSec=60
 StartLimitBurst=3
 
 [Service]
