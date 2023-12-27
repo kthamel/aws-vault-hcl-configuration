@@ -16,7 +16,7 @@ PrivateTmp=yes
 PrivateDevices=yes
 SecureBits=keep-caps
 AmbientCapabilities=CAP_IPC_LOCK
-CAPABILITIES=CAP_IPC_LOCK+ep
+Capabilities=CAP_IPC_LOCK+ep
 CapabilityBoundingSet=CAP_SYSLOG CAP_IPC_LOCK
 NoNewPrivileges=yes
 ExecStart=/usr/local/bin/vault server -config=/etc/vault.d/vault.hcl
