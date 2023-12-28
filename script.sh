@@ -13,7 +13,7 @@ sudo mkdir /mnt/vault-data
 
 echo "## Create user for vault service ##"
 sudo useradd -m -d /mnt/vault-data vault
-sudo chown -Rv vault:vault /mnt/vault-data/*
+sudo chown -Rv vault:vault /mnt/vault-data/
 
 echo "## Copy the valut.hcl file ##"
 sudo mkdir /etc/vault.d/
