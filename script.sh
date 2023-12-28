@@ -25,8 +25,8 @@ sudo cp -rv aws-vault-hcl-configuration/vault.service /lib/systemd/system/
 echo "## Wait for disk attaching ##"
 sudo sleep 180
 
-echo "## Start the vault service ##"
-sudo systemctl restart vault.service
-
 echo "## Enable the vault service ##"
 sudo systemctl enable vault.service
+
+echo "## Start the vault service ##"
+sudo systemctl start vault.service
