@@ -22,7 +22,7 @@ NoNewPrivileges=yes
 ExecStart=/usr/local/bin/vault server -config=/etc/vault.d/vault.hcl
 ExecReload=/bin/kill --signal -HUP $MAINPID
 KillMode=process
-KillSignal=SIGINIT
+KillSignal=SIGINT
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=30
