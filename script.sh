@@ -22,9 +22,6 @@ sudo cp -rv aws-vault-hcl-configuration/vault.hcl /etc/vault.d/
 echo "## Copy the vault.service file ##"
 sudo cp -rv aws-vault-hcl-configuration/vault.service /lib/systemd/system/
 
-echo "## Wait for disk attaching ##"
-sudo sleep 180
-
 echo "## Enable the vault service ##"
 sudo systemctl enable vault.service
 
