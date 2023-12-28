@@ -13,6 +13,7 @@ sudo mkdir /mnt/vault-data
 
 echo "## Create user for vault service ##"
 sudo useradd -m -d /mnt/vault-data vault
+sudo chown -Rv vault:vault /mntvault-data/
 
 echo "## Copy the valut.hcl file ##"
 sudo mkdir /etc/vault.d/
@@ -20,6 +21,9 @@ sudo cp -rv aws-vault-hcl-configuration/vault.hcl /etc/vault.d/
 
 echo "## Copy the vault.service file ##"
 sudo cp -rv aws-vault-hcl-configuration/vault.service /lib/systemd/system/
+
+echo "## Wait for disk attaching ##"
+sudo sleep 180
 
 echo "## Start the vault service ##"
 sudo systemctl start vault.service
