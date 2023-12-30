@@ -30,3 +30,8 @@ sudo systemctl enable vault.service
 
 echo "## Start the vault service ##"
 sudo systemctl start vault.service
+
+echo "## Enable logs for vault service ##"
+touch /var/log/vault.log
+chown vault:vault /var/log/vault.log
+vault audit enable file file_path=/var/log/vault.log
