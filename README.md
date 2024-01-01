@@ -30,6 +30,16 @@ vault write auth/userpass/users/kthamel-a password=asitlk8s policies=policy-root
 vault secrets enable -path=aws aws  #In here aws means auth method
 vault secrets tune -description="aws credentials" aws/
 
+# 5. Enable approle auth method
+vault auth enable -description="role based authentication" approle
+vault write auth/approle/role/role-devops policies=policy-devops token_ttl=60m
+vault list auth/approle/role
+vault read auth/approle/role/role-devops
+vault read auth/approle/role/role-devops/role-id #Fetch the role_id 
+vault write -force auth/approle/role/role-devops/secret-id #Fetch the secret_id
+vault write auth/approle/login role_id=xxxx secret_id=xyxy #Fetch the token for authentication
+
+
 
 ######################################
 7. Remove the newly added path 
