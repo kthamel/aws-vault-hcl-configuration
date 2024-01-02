@@ -4,6 +4,7 @@
 
 sudo systemctl start vault
 sudo journalctl -u vault
+vault -autocomplete-install && source $HOME/.bashrc
 sudo touch /var/log/vault.log
 sudo chown vault:vault /var/log/vault.log
 vault audit enable file file_path=/var/log/vault.log
@@ -16,19 +17,35 @@ vault login
 
 # 3. Create a vault user with root privilages
 
-cat policy-root.hcl <<-EOF
+cat << EOF >> policy-root.hcl 
 path "*" {
 capabilities = ["create", "read", "update", "delete", "list", "sudo"]
 } 
 EOF
 
-vault auth write userpass
+vault policy fmt policy-root.hcl # Canonical formating the policy document
+vault auth enable userpass
+vault auth tune -description="vault user credentials" userpass/
 vault policy write policy-root policy-root.hcl
+vault policy read policy-root
 vault write auth/userpass/users/kthamel-a password=asitlk8s policies=policy-root
+vault list auth/userpass/users
+vault read auth/userpass/users/kthamel-a
+
+# 4. Working with API calls
+curl \ 
+--header "X-Vault-Token: vault_token" \
+--request GET  
+http://127.0.0.1:8200/v1/sys/policy/policy-root 
 
 # 4. Enable new secrets path
 vault secrets enable -path=aws aws  #In here aws means auth method
 vault secrets tune -description="aws credentials" aws/
+vault secrets enable -description="ansible configuration" -path="ansible" kv # From single line
+vault secrets list
+vault kv put -mount=ansible dev user=kthamel-1 hosts=us-east-01.local password=abc123
+vault kv list -mount=ansible
+vault kv get -mount=ansible dev
 
 # 5. Enable approle auth method
 vault auth enable -description="role based authentication" approle
@@ -42,37 +59,7 @@ vault write auth/approle/login role_id=xxxx secret_id=xyxy #Fetch the token for 
 
 
 ######################################
-7. Remove the newly added path 
-vault secrets disable aws/
-
-8. Add secrets for new vault user
-vault write auth/userpass/users/kthamel-a password=asitlk8s policies=root
 
 9. Preview the added secrets 
 vault kv get aws/administrator/user
 vault kv get aws/administrator/password
-
-10. Configure logs for the vault service
-sudo touch /var/log/vault.log
-sudo chown vault:vault /var/log/vault.log
-vault audit enable file file_path=/var/log/vault.log
-
-11. List auth methods
-vault auth list
-
-12. Update the description of a secret
-
-
-13. Enable auth aws for -path=aws-data
-vault auth enable -path=aws-data aws
-
-14. Update the description of a auto method
-vault auth tune -description="aws credentials" aws-data/
-
-15. Enable bash completion for vautl
-vault -autocomplete-install && source $HOME/.bashrc
-
-16. List the vault policies list 
-vault policy list
-
-
