@@ -68,3 +68,10 @@ cat ~/.vault-token
 vault token lookup token_value_XXXX #Can use the output of above command
 vault token create -policy="policy-devops-plus" -use-limit=2 #Create new token with use limits
 vault token create -policy="policy-devops-plus" -use-limit=2 -ttl=1h #Create new token with TTL value
+vault token create -policy="policy-devops-plus" -orphan #Create orphan token
+vault write auth/approle/role/devops policies="policy-devops" token_type="batch" token_ttl="60s" #Create batch token
+vault read auth/approle/role/devops
+vault token revoke hvs.xxxxxxxxx #If token is existing, can revoke it
+vault token lookup -accessor accessor_id_xxxx #Get more deails of token
+vault token revoke -accessor accessor_id_xxxx #If token is existing, can revoke it
+vault write auth/approle/role/devops policies="policy-devops" token_type="batch" token_ttl="300s" token_max_ttl="3000s" #Create batch token with maximum TTL
