@@ -78,6 +78,7 @@ vault token revoke -accessor accessor_id_xxxx #If token is existing, can revoke 
 vault write auth/approle/role/devops policies="policy-devops" token_type="batch" token_ttl="300s" token_max_ttl="3000s" #Create batch token with maximum TTL
 
 # 7. Secret engines - AWS
+
 vault secrets enable -path=aws -description="aws credentials" aws
 vault write aws/config/root access_key=ACCESS_KEY_ID secret_key=SECRET_ACCESS_KEY_ID region=us-east-1 
 #Write the privialge user credentials to the AWS Secret engine
@@ -102,7 +103,8 @@ vault list aws/roles    #List the existing roles on aws secrets engine
 vault read aws/roles/   #Read the existing role on aws secrets engine
 vault delete aws/roles/ #Delete the existing role on aws secrets engine
 
-# 8. Secret engines - KV [version 1 and 2]
+# 8. Secret Engine - KV [version 1 and 2]
+
 vault secrets list -detailed #List secret engines with more details
 vault secrets enable -path="static" -description="static credentials" kv #Create secret engine for static secrets
 vault kv put -mount=static devops/dev user=kthamel-1 hosts=us-east-01.local password=abc123 #Put static data into kv
@@ -114,3 +116,32 @@ vault kv undelete -mount=new-static-v2 -versions=3 data/test #Undo the deletion 
 vault kv destroy -mount=new-static-v2 -versions=3 data/test #Delete permanently, unable to undelete and recover
 vault kv rollback -mount=new-static-v2 -version=2 data/test #Rollback can set a version into the latest version
 vault kv patch -mount=new-static-v2 data/test password=xyz123 #Only change the once value of a secret [version 2 only]
+vault kv get -version=5 new-static-v2/data/test #Get secrets of specific version
+
+# 9. Secret Engine - Cubbyhole
+
+curl --header "X-Vault-Token: hvs.VAULT_TOKEN" --request POST --data '{"Name": "test-name"}' http://VAULT_IP:8200/v1/cubbyhole/test-data #Write into cubbyhole via API call
+
+curl --header "X-Vault-Token: hvs.VAULT_TOKEN" http://VAULT_IP:8200/v1/cubbyhole/test-data | jq #Read data from cubbyhole via API call
+
+vault kv get -wrap-ttl=10m new-static-v1/data/test #Wrap specific secret with TTL
+vault token lookup WRAPPED_TOKEN
+vault unwrap WRAPPED_TOKEN #Read the wrapped data
+
+# 10. Secret Engine - Transit
+vault secrets enable -path="transit" -description="transit engine" transit #Enable transit engine
+vault write -f transit/keys/devops type="rsa-4096" #Create encryption key using the rsa-4096 
+
+vault write transit/encrypt/devops plaintext=$(base64 <<< "Plain text 01") 
+/# In here devops is the name of encryption key. "Plain text 01" is the text that we are going to encrypt using the devops encryption key #/
+
+vault write transit/encrypt/devopx plaintext=$(base64 <<< "Plain text 01") 
+/# If we run the same command with non-existing encryption key, it will create the encryption key with the given anme and use the aes256-gcm96 #/
+
+vault write transit/decrypt/devopx ciphertext="vault:v1:ENCRYPTED_TEXT"
+/# This has to be decode using Base64 /#
+echo ENCODED_VALUE | base64 --decode
+
+vault write -f transit/keys/devops/rotate #Can rotate encryption key forcefully [pass -f option]
+vault write transit/keys/devops/config min_decryption_version=4 #Set minimum decryption version
+
