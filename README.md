@@ -143,5 +143,13 @@ vault write transit/decrypt/devopx ciphertext="vault:v1:ENCRYPTED_TEXT"
 echo ENCODED_VALUE | base64 --decode
 
 vault write -f transit/keys/devops/rotate #Can rotate encryption key forcefully [pass -f option]
-vault write transit/keys/devops/config min_decryption_version=4 #Set minimum decryption version
+vault write transits/rewrap/devops ciphertext="V2_VERSION_CYPHERTEXT_VALUE" #Rewrap will be done using the latest key_version
 
+vault write transits/decrypt/devops ciphertext=="V2_VERSION_RETURNING_CYPHERTEXT_VALUE"
+
+vault write transits/decrypt/devops ciphertext="V3_VERSION_RETURNING_CYPHERTEXT_VALUE
+/# From this way we can get the encoded that we used on first step #/
+
+vault write transit/keys/devops/config min_decryption_version=3 #Set minimum decryption version
+
+# 11. Secret engines - AWS IAM
