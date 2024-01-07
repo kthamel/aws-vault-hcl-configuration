@@ -77,10 +77,12 @@ vault token lookup -accessor accessor_id_xxxx #Get more deails of token
 vault token revoke -accessor accessor_id_xxxx #If token is existing, can revoke it
 vault write auth/approle/role/devops policies="policy-devops" token_type="batch" token_ttl="300s" token_max_ttl="3000s" #Create batch token with maximum TTL
 
-# 7. Secret engines - AWS
+# 7. Secret engines - AWS IAM Role
 
 vault secrets enable -path=aws -description="aws credentials" aws
-vault write aws/config/root access_key=ACCESS_KEY_ID secret_key=SECRET_ACCESS_KEY_ID region=us-east-1 
+vault write aws/config/root access_key=ACCESS_KEY_ID secret_key=SECRET_ACCESS_KEY_ID region=WORKING_REGION
+vault read aws/config/root
+vault write -f aws/config/rotate-root #To generate AWS access keys. Better to use seperate AWS user for vault tasks
 #Write the privialge user credentials to the AWS Secret engine
 #Create a new role inside the AWS secrets engine
 
@@ -100,25 +102,16 @@ vault write aws/roles/ec2-role \
 EOF
 
 vault list aws/roles    #List the existing roles on aws secrets engine
-vault read aws/roles/   #Read the existing role on aws secrets engine
-vault delete aws/roles/ #Delete the existing role on aws secrets engine
+vault write aws/roles/s3-role credential_type=iam_user policy_arns=arn:aws:iam::aws:policy/AmazonS3FullAccess 
+/# Other than using the policy documents, we can use the ARN of the required IAM ROLE #/
 
-# 8. Secret Engine - KV [version 1 and 2]
+vault read aws/roles/ROLE_NAME   #Read the existing role on aws secrets engine
+vault delete aws/roles/ROLE_NAME #Delete the existing role on aws secrets engine
+vault read aws/creds/ROLE_NAME #To generate credentials using the created roles
+vault lease revoke LEASE_ID #From this command, can revoke the generated credentials
+vault lease revoke -prefix aws/creds/ROLE_NAME #Can delete all the users created with this role
 
-vault secrets list -detailed #List secret engines with more details
-vault secrets enable -path="static" -description="static credentials" kv #Create secret engine for static secrets
-vault kv put -mount=static devops/dev user=kthamel-1 hosts=us-east-01.local password=abc123 #Put static data into kv
-vault secrets enable -path="static-v2" -description="static credentials" kv-v2 #Enable kv from version 2. Just kv is v1
-vault secrets enable -path="new-static-v2" -description="static credentials" -version=2 kv #Also, this is working
-vault kv enable-versioning static/ #Upgrade the kv version from 1 to version 2
-vault kv delete -mount=new-static-v2 data/test #Delete secret from kv [version 2 only]
-vault kv undelete -mount=new-static-v2 -versions=3 data/test #Undo the deletion of the secret from kv [version 2 only]
-vault kv destroy -mount=new-static-v2 -versions=3 data/test #Delete permanently, unable to undelete and recover
-vault kv rollback -mount=new-static-v2 -version=2 data/test #Rollback can set a version into the latest version
-vault kv patch -mount=new-static-v2 data/test password=xyz123 #Only change the once value of a secret [version 2 only]
-vault kv get -version=5 new-static-v2/data/test #Get secrets of specific version
-
-# 9. Secret Engine - Cubbyhole
+# 8. Secret Engine - Cubbyhole
 
 curl --header "X-Vault-Token: hvs.VAULT_TOKEN" --request POST --data '{"Name": "test-name"}' http://VAULT_IP:8200/v1/cubbyhole/test-data #Write into cubbyhole via API call
 
@@ -128,7 +121,7 @@ vault kv get -wrap-ttl=10m new-static-v1/data/test #Wrap specific secret with TT
 vault token lookup WRAPPED_TOKEN
 vault unwrap WRAPPED_TOKEN #Read the wrapped data
 
-# 10. Secret Engine - Transit
+# 9. Secret Engine - Transit
 vault secrets enable -path="transit" -description="transit engine" transit #Enable transit engine
 vault write -f transit/keys/devops type="rsa-4096" #Create encryption key using the rsa-4096 
 
@@ -152,4 +145,31 @@ vault write transits/decrypt/devops ciphertext="V3_VERSION_RETURNING_CYPHERTEXT_
 
 vault write transit/keys/devops/config min_decryption_version=3 #Set minimum decryption version
 
-# 11. Secret engines - AWS IAM
+# 10. Secret engines - AWS Assumed Role
+vault write aws/roles/assume-s3-role credential_type=assumed_role \ role_arns=arn:aws:iam::AWS_ACCOUNT_ID_OF_DIFFERENT_ACCOUNT:role/AmazonS3FullAccess 
+vault write aws/sts/assume-s3-role -ttl=60m #In here have to use the write option
+/# Using the command output, have to configure the AWS Cli with the STS token and access keys#/
+
+# 11. Secret Engine - KV_V1
+vault secret enable -descrption="version 01" -path="static" kv
+vault kv put static/data/uat hosts="us-east-02.local" password="xyz987" user="kthamel-x"
+vault kv list static/data #Can list the secrets inside the specific path
+vault kv get static/data/uat #Get the secrets added into uat
+vault kv get -format=json static/data/dev #Retrieve data on JSON format
+vault kv get -format=json static/data/dev | jq -r ".data" #Get only the data section
+
+# 12. Secret Engine - KV_V2
+vault secrets enable -path="new-static-v2" -description="static credentials" kv-v2
+vault secrets enable -path="new-static-v2" -description="static credentials" -version=2 kv #Also, this is working
+vault kv enable-versioning static/ #Upgrade the kv version from 1 to version 2
+vault kv get -version=1 new-static-v2/devops/dev #Get specific version, use -version 
+vault kv delete new-static-v2/devops/dev data/test #Delete secret from kv
+vault kv undelete -versions=3 new-static-v2devops/dev #Undo the deletion of the secret from kv 
+vault kv get -version=1 -format=json static-v2/devops/dev | jq -r ".data.data.password" #Get the specific value 
+vault kv destroy -versions=1 static-v2/devops/dev #Permanently delete the specific version
+vault kv rollback -version=2 static-v2/devops/dev #Set specific version into the latest version
+vault kv patch static-v2/devops/dev password=xyz123 #Only change the one value of a secret
+vault kv metadata get static-v2/devops/dev #Get detailed metadata of a secret
+vault kv metadata delete static-v2/devops/dev #Delete metadata of deleted secret
+
+# 12. Secret Engine - Dtabase
