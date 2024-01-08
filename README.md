@@ -122,6 +122,7 @@ vault token lookup WRAPPED_TOKEN
 vault unwrap WRAPPED_TOKEN #Read the wrapped data
 
 # 9. Secret Engine - Transit
+
 vault secrets enable -path="transit" -description="transit engine" transit #Enable transit engine
 vault write -f transit/keys/devops type="rsa-4096" #Create encryption key using the rsa-4096 
 
@@ -146,11 +147,13 @@ vault write transits/decrypt/devops ciphertext="V3_VERSION_RETURNING_CYPHERTEXT_
 vault write transit/keys/devops/config min_decryption_version=3 #Set minimum decryption version
 
 # 10. Secret engines - AWS Assumed Role
+
 vault write aws/roles/assume-s3-role credential_type=assumed_role \ role_arns=arn:aws:iam::AWS_ACCOUNT_ID_OF_DIFFERENT_ACCOUNT:role/AmazonS3FullAccess 
 vault write aws/sts/assume-s3-role -ttl=60m #In here have to use the write option
 /# Using the command output, have to configure the AWS Cli with the STS token and access keys#/
 
 # 11. Secret Engine - KV_V1
+
 vault secret enable -descrption="version 01" -path="static" kv
 vault kv put static/data/uat hosts="us-east-02.local" password="xyz987" user="kthamel-x"
 vault kv list static/data #Can list the secrets inside the specific path
@@ -159,6 +162,7 @@ vault kv get -format=json static/data/dev #Retrieve data on JSON format
 vault kv get -format=json static/data/dev | jq -r ".data" #Get only the data section
 
 # 12. Secret Engine - KV_V2
+
 vault secrets enable -path="new-static-v2" -description="static credentials" kv-v2
 vault secrets enable -path="new-static-v2" -description="static credentials" -version=2 kv #Also, this is working
 vault kv enable-versioning static/ #Upgrade the kv version from 1 to version 2
@@ -173,3 +177,37 @@ vault kv metadata get static-v2/devops/dev #Get detailed metadata of a secret
 vault kv metadata delete static-v2/devops/dev #Delete metadata of deleted secret
 
 # 12. Secret Engine - Dtabase
+
+vault secrets enable -path="vaultsql" -description="mysql backend" database #Enable database backend
+vault write vaultsql/config/mysql-database plugin_name=mysql-rds-database-plugin connection_url="{{username}}:{{password}}@tcp(FQDN_OF_RDS_MYSQL_DATABASE:3306)/" allowed_roles="advanced" username="uservault" password="Vaultpassword"
+/# Will prompt the message as "Success! Data written to: vaultsql/config/mysql-database" #/
+
+vault write vaultsql/roles/advanced db_name=vault-database creation_statements="CREATE USER '{{name}}'@'%' IDENTIFIED BY '{{password}}'; GRANT SELECT ON *.* TO '{{name}}'@'%';" default_ttl="1h" max_ttl="24h"
+/# Will prompt the message as "Success! Data written to: vaultsql/roles/advanced" #/
+
+vault read vaultsql/roles/advanced #Read the created role name advanced
+vault read vaultsql/config/mysql-database #
+
+vault write -f vaultsql/rotate-root/mysql-database #Can rotate the username and password of RDS Database
+vault read vaultsql/creds/advanced #Generate dynamic credentials (username and passwords)
+/#Be caureful executing this command, better to use different MySQL user to authenticate the Database other than root #/
+
+# 13. PKI Secret Engine
+
+vault secrets enable -path=vaultpki -description="pki engine" pki #Enable PKI engine
+vault secrets tune -max-lease-ttl=87600h vaultpki #Set max TTL to 10 years
+
+vault write -field=certificate vaultpki/root/generate/internal common_name="kthamel.dev" ttl=87600h > kthamel_dev.crt
+
+vault write vaultpki/config/urls issuing_certificates="http://127.0.0.1:8200/v1/pki/ca" crl_distribution_points="http://127.0.0.1:8200/v1/pki/crl"
+
+vault secrets enable -path=vaultpki2 -description="pki engine II" pki #Enable PKI engine #Enable intermediate PKI Engine
+
+vault write -format=json vaultpki2/intermediate/generate/internal common_name="kthamel.dev Intermediate Authority" | jq -r ".data.csr" > pki_kthamel_dev.csr
+
+vault write -format=json vaultpki/root/sign-intermediate csr=@pki_kthamel_dev.csr format=pem_bundle ttl="43800h" | jq -r '.data.certificate' > intermediate_kthamel_dev.pem
+
+vault write vaultpki2/intermediate/set-signed certificate=@intermediate_kthamel_dev.pem
+vault write vaultpki2/roles/vault_root allowed_domains="kthamel.dev" allow_subdomains=true max_ttl="720h"
+vault list vaultpki2/roles
+vault write vaultpki2/issue/vault_root common_name="one.kthamel.dev" ttl="24h" #Create the certificates
