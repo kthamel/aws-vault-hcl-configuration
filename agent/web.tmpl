@@ -1,0 +1,7 @@
+adapter: postgresql
+encoding: unicode
+database: vaultdatabase
+{{ with secret "kv/static/devops/dev" }}
+username: "{{ .data.data.username }}"
+password: "{{ .data.data.password }}"
+{{ end }}
