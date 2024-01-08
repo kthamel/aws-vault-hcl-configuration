@@ -154,7 +154,7 @@ vault write aws/sts/assume-s3-role -ttl=60m #In here have to use the write optio
 
 # 11. Secret Engine - KV_V1
 
-vault secret enable -descrption="version 01" -path="static" kv
+vault secrets enable -descrption="version 01" -path="static" kv
 vault kv put static/data/uat hosts="us-east-02.local" password="xyz987" user="kthamel-x"
 vault kv list static/data #Can list the secrets inside the specific path
 vault kv get static/data/uat #Get the secrets added into uat
@@ -211,3 +211,14 @@ vault write vaultpki2/intermediate/set-signed certificate=@intermediate_kthamel_
 vault write vaultpki2/roles/vault_root allowed_domains="kthamel.dev" allow_subdomains=true max_ttl="720h"
 vault list vaultpki2/roles
 vault write vaultpki2/issue/vault_root common_name="one.kthamel.dev" ttl="24h" #Create the certificates
+
+# 14. Vault agent
+
+vault auth enable -path=approle -description="approle authentication" approle #Enable approle auth method
+vault write auth/approle/role/agent token_policies=cloud_policy
+vault list auth/approle/role
+vault read auth/approle/role/agent
+vault read auth/approle/role/agent/role-id #Fetch the role-id of agent role, create role_id.txt file and put the role_id
+vault write -f  auth/approle/role/agent/secret-id #Generate the secret-id of agent role, create secret_id.txt file and put the secret_id
+
+vault agent -config=agent.hcl #Create the agent.hcl file. (Refer to the agent sub directory) #Once this command executed, secret_id.txt file will be deleted automatically. On the output.yaml there we can fetch the required credentials
